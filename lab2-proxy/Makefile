@@ -3,6 +3,9 @@ CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++11 -O3 -g -Weffc++
 OBJS = TCPSocket.o HTTPProxy.o main.o
 TARGET = proxy
 
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $^ -c -o $@
+
 all: $(OBJS)
 	$(CXX) $^ -o $(TARGET)
 
