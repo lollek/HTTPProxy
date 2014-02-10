@@ -1,6 +1,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <vector>
 #include <string>
 #include <iostream>
 
@@ -60,7 +61,8 @@ int HTTPProxy::run() const {
 int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   /* Receive data from client */
-  string client_data = client->recvall();
+  vector<char> client_data_array = client->recvall();
+  string client_data(client_data_array.data());
   string target_hostname = findHostName(client_data);
 
   /* Connect to true target */
@@ -71,9 +73,10 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   }
 
   /* Send data client -> target and then target -> client */
-  target.send(client_data);
-  string target_data = target.recvall();
-  client->send(target_data);
+  target.send(client_data_array);
+  vector<char> target_data_array = target.recvall();
+  string target_data(target_data_array.data());
+  client->send(target_data_array);
 
   cout << "client -> target:\n"
        << client_data << endl;
