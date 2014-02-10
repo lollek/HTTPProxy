@@ -1,3 +1,2 @@
 *.o
-*
-!*.*
+lab2-proxy/proxy
