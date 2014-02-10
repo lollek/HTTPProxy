@@ -83,6 +83,21 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   cout << "target -> client\n"
        << target_data << endl;
 
+  /* If keep-alive: do some loopy stuff */
+  while (isKeepAlive(client_data)) {
+    client_data_array = client->recvall();
+    if (client_data_array.size() == 0 ||
+        target.send(client_data_array) != 0) {
+      break;
+    }
+
+    target_data_array = target.recvall();
+    if (target_data_array.size() == 0 ||
+        client->send(target_data_array) != 0) {
+      break;
+    }
+  }
+
   target.close();
   return 0;
 }
@@ -107,4 +122,31 @@ string HTTPProxy::findHostName(const string &data) const {
   }
 
   return data.substr(start, end - start);
+}
+
+bool HTTPProxy::isKeepAlive(const string &data) const {
+  /* Check first if there's an (Proxy-)Connection: (keep-alive|close) */
+  unsigned start = data.find("Connection: ");
+  if (start != string::npos) {
+    start += strlen("Connection: ");
+    string result = data.substr(start, strlen("close"));
+    for (auto p = result.begin(); p != result.end(); ++p) {
+      *p = tolower(*p);
+    }
+    if (result == "close") {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  /* If not found, use keep-alive if HTTP/1.1 or 1.2 - else close */
+  else {
+    if (data.find("HTTP/1.1") != string::npos ||
+        data.find("HTTP/1.2") != string::npos) {
+      return true;
+    } else {
+      return false;
+    }
+  }
 }
