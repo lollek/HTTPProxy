@@ -86,7 +86,9 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   if (client_data_array.size() == BUFSIZE) {
     while (client_data_array.size() != 0) {
       client_data_array = client->recv(BUFSIZE);
-      client->send(client_data_array);
+      if (target.send(client_data_array) != 0) {
+        break;
+      }
       cout << " " << client_data_array.size() << " ";
     }
   }
@@ -99,7 +101,9 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   if (target_data_array.size() == BUFSIZE) {
     while (target_data_array.size() != 0) {
       target_data_array = target.recv(BUFSIZE);
-      target.send(target_data_array);
+      if (client->send(target_data_array) != 0) {
+        break;
+      }
       cout << " " << target_data_array.size() << " ";
     }
   }
@@ -110,24 +114,45 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   cout << "DONE" << endl;
 
   /* If keep-alive: do some loopy stuff */
-  while (isKeepAlive(client_data)) {
+  bool do_break = false;
+  while (isKeepAlive(client_data) && !do_break) {
     cout << "(KEEP-ALIVE) Data transfer: client -> proxy ..." << flush;
-    client_data_array = client->recvall();
+    client_data_array = client->recv(BUFSIZE);
+    cout << " " << client_data_array.size() << " ";
+    if (client_data_array.size() == BUFSIZE) {
+      while (client_data_array.size() != 0) {
+        client_data_array = client->recv(BUFSIZE);
+        if (target.send(client_data_array) != 0) {
+          do_break = true;
+        }
+        cout << " " << client_data_array.size() << " ";
+      }
+    }
     cout << "DONE (" << client_data_array.size() << ")" << endl;
     cout << "(KEEP-ALIVE) Data transfer: proxy -> target ..." << flush;
-    if (client_data_array.size() == 0 ||
-        target.send(client_data_array) != 0) {
+    if (do_break) {
       cout << "BREAK!" << endl;
       break;
     }
     cout << "DONE" << endl;
 
+
+
     cout << "(KEEP-ALIVE) Data transfer: target -> proxy ..." << flush;
-    target_data_array = target.recvall();
+    target_data_array = target.recv(BUFSIZE);
+    cout << " " << target_data_array.size() << " ";
+    if (target_data_array.size() == BUFSIZE) {
+      while (target_data_array.size() != 0) {
+        target_data_array = target.recv(BUFSIZE);
+        if (client->send(target_data_array) != 0) {
+          do_break = true;
+        }
+        cout << " " << target_data_array.size() << " ";
+      }
+    }
     cout << "DONE (" << target_data_array.size() << ")" << endl;
     cout << "(KEEP-ALIVE) Data transfer: proxy -> client ..." << flush;
-    if (target_data_array.size() == 0 ||
-        client->send(target_data_array) != 0) {
+    if (do_break) {
       cout << "BREAK!" << endl;
       break;
     }
