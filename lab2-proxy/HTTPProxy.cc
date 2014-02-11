@@ -67,6 +67,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   string client_data(client_data_array.data());
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
+    cout << "No hostname found - return" << endl;
     return 1;
   }
   cout << "DONE (" << client_data_array.size() << ")" << endl;
@@ -89,6 +90,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
       if (target.send(client_data_array) != 0) {
         break;
       }
+      target.send(client_data_array);
       cout << " " << client_data_array.size() << " ";
     }
   }
@@ -96,7 +98,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   cout << "Data transfer: target -> proxy ..." << flush;
   vector<char> target_data_array = target.recv(1024);
-  string target_data(target_data_array.data());
   cout << " " << target_data_array.size() << " ";
   if (target_data_array.size() == BUFSIZE) {
     while (target_data_array.size() != 0) {
@@ -104,6 +105,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
       if (client->send(target_data_array) != 0) {
         break;
       }
+      client->send(target_data_array);
       cout << " " << target_data_array.size() << " ";
     }
   }
