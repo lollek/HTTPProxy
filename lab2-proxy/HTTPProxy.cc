@@ -140,6 +140,9 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
           do_break = true;
         }
         cout << " " << client_data_array.size() << " ";
+        if (client_data_array.size() != BUFSIZE) {
+          client_data_array.resize(BUFSIZE);
+        }
       }
     } else {
       do_break = true;
