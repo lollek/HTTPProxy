@@ -127,6 +127,8 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
         }
         cout << " " << client_data_array.size() << " ";
       }
+    } else {
+      do_break = true;
     }
     cout << "DONE (" << client_data_array.size() << ")" << endl;
     cout << "(KEEP-ALIVE) Data transfer: proxy -> target ..." << flush;
@@ -149,6 +151,8 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
         }
         cout << " " << target_data_array.size() << " ";
       }
+    } else {
+      do_break = true;
     }
     cout << "DONE (" << target_data_array.size() << ")" << endl;
     cout << "(KEEP-ALIVE) Data transfer: proxy -> client ..." << flush;
