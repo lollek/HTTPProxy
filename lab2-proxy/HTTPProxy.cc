@@ -66,7 +66,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   string client_data(client_data_array.data());
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
-    cout << "No hostname found - return" << endl;
+    cout << "No hostname found - return :( string was:\n" << client_data << endl;
     return 1;
   }
   cout << "DONE (" << client_data_array.size() << ")" << endl;
