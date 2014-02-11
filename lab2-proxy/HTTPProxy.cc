@@ -65,7 +65,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   vector<char> client_data_array = client->recvall();
   string client_data(client_data_array.data());
   string target_hostname = findHostName(client_data);
-  removeKeepAlive(client_data_array);
   cout << "DONE (" << client_data_array.size() << ")" << endl;
 
   /* Connect to true target */
@@ -91,7 +90,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   cout << "DONE" << endl;
 
   /* If keep-alive: do some loopy stuff */
-#if 0
   while (isKeepAlive(client_data)) {
     cout << "(KEEP-ALIVE) Data transfer: client -> proxy ..." << flush;
     client_data_array = client->recvall();
@@ -115,7 +113,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     }
     cout << "DONE" << endl;
   }
-#endif
 
   target.close();
   return 0;
@@ -145,14 +142,22 @@ string HTTPProxy::findHostName(const string &data) const {
 
 void HTTPProxy::removeKeepAlive(vector<char> &data) const {
   char *real_data = data.data();
-  const char *replace_str = "Close";
+  const char *replace_str = "close";
+  cout << "OLD DATA (" << data.size() << "):\n" << data.data() << endl;
   for (unsigned i = 0; i < data.size(); ++i) {
-    if (!strcmp(real_data + i, "Keep-Alive")) {
+    if (!strncmp(real_data + i, "Keep-Alive", 10) ||
+        !strncmp(real_data + i, "keep-alive", 10)) {
+      cout << "Removed keepalive" << endl;
       memcpy(real_data + i, replace_str, 5);
       data.erase(data.begin() + i + 5, data.begin() + i + 10);
+      if (!strncmp(real_data + i, "close\r\n\r\n", 9)) {
+        cout << "replace - OK! i = " << i << endl;
+      }
+  cout << "NEW DATA (" << data.size() << "):\n" << data.data() << endl;
       return;
     }
   }
+
 }
 
 bool HTTPProxy::isKeepAlive(const string &data) const {
