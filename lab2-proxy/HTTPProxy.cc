@@ -92,7 +92,12 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
       }
       target.send(client_data_array);
       cout << " " << client_data_array.size() << " ";
+      if (client_data_array.size() != BUFSIZE) {
+        client_data_array.resize(BUFSIZE);
+      }
     }
+  } else {
+    client_data_array.resize(BUFSIZE);
   }
   cout << "DONE" << endl;
 
@@ -109,7 +114,12 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
       }
       client->send(target_data_array);
       cout << " " << target_data_array.size() << " ";
+      if (target_data_array.size() != BUFSIZE) {
+        target_data_array.resize(BUFSIZE);
+      }
     }
+  } else {
+    target_data_array.resize(BUFSIZE);
   }
   cout << "DONE (" << target_data_array.size() << ")" << endl;
 
