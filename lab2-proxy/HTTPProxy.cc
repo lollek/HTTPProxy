@@ -59,12 +59,16 @@ int HTTPProxy::run() const {
 }
 
 int HTTPProxy::handleRequest(TCPSocket *client) const {
+  const unsigned BUFSIZE = 1024;
 
   /* Receive data from client */
   cout << "Data transfer: client -> proxy ..." << flush;
-  vector<char> client_data_array = client->recvall();
+  vector<char> client_data_array = client->recv(BUFSIZE);
   string client_data(client_data_array.data());
   string target_hostname = findHostName(client_data);
+  if (target_hostname.size() == 0) {
+    return 1;
+  }
   cout << "DONE (" << client_data_array.size() << ")" << endl;
 
   /* Connect to true target */
@@ -78,11 +82,23 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   /* Send data client -> target and then target -> client */
   cout << "Data transfer: proxy -> target ..." << flush;
   target.send(client_data_array);
+  if (client_data_array.size() == BUFSIZE) {
+    while (client_data_array.size() != 0) {
+      client_data_array = client->recv(BUFSIZE);
+      client->send(client_data_array);
+    }
+  }
   cout << "DONE" << endl;
 
   cout << "Data transfer: target -> proxy ..." << flush;
-  vector<char> target_data_array = target.recvall();
+  vector<char> target_data_array = target.recv(1024);
   string target_data(target_data_array.data());
+  if (target_data_array.size() == BUFSIZE) {
+    while (target_data_array.size() != 0) {
+      target_data_array = target.recv(BUFSIZE);
+      target.send(target_data_array);
+    }
+  }
   cout << "DONE (" << target_data_array.size() << ")" << endl;
 
   cout << "Data transfer: proxy -> client ..." << flush;
