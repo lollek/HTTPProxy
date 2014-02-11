@@ -61,42 +61,61 @@ int HTTPProxy::run() const {
 int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   /* Receive data from client */
+  cout << "Data transfer: client -> proxy ..." << flush;
   vector<char> client_data_array = client->recvall();
   string client_data(client_data_array.data());
   string target_hostname = findHostName(client_data);
+  removeKeepAlive(client_data_array);
+  cout << "DONE (" << client_data_array.size() << ")" << endl;
 
   /* Connect to true target */
-  cout << "Connecting to " << target_hostname << ":80" << endl;
+  cout << "Connecting proxy -> " << target_hostname << ":80..." << flush;
   TCPSocket target = TCPSocket(IPV4);
   if (target.connect(findHostName(client_data), 80) != 0 ) {
     return 1;
   }
+  cout << " DONE" << endl;
 
   /* Send data client -> target and then target -> client */
+  cout << "Data transfer: proxy -> target ..." << flush;
   target.send(client_data_array);
+  cout << "DONE" << endl;
+
+  cout << "Data transfer: target -> proxy ..." << flush;
   vector<char> target_data_array = target.recvall();
   string target_data(target_data_array.data());
-  client->send(target_data_array);
+  cout << "DONE (" << target_data_array.size() << ")" << endl;
 
-  cout << "client -> target:\n"
-       << client_data << endl;
-  cout << "target -> client\n"
-       << target_data << endl;
+  cout << "Data transfer: proxy -> client ..." << flush;
+  client->send(target_data_array);
+  cout << "DONE" << endl;
 
   /* If keep-alive: do some loopy stuff */
+#if 0
   while (isKeepAlive(client_data)) {
+    cout << "(KEEP-ALIVE) Data transfer: client -> proxy ..." << flush;
     client_data_array = client->recvall();
+    cout << "DONE (" << client_data_array.size() << ")" << endl;
+    cout << "(KEEP-ALIVE) Data transfer: proxy -> target ..." << flush;
     if (client_data_array.size() == 0 ||
         target.send(client_data_array) != 0) {
+      cout << "BREAK!" << endl;
       break;
     }
+    cout << "DONE" << endl;
 
+    cout << "(KEEP-ALIVE) Data transfer: target -> proxy ..." << flush;
     target_data_array = target.recvall();
+    cout << "DONE (" << target_data_array.size() << ")" << endl;
+    cout << "(KEEP-ALIVE) Data transfer: proxy -> client ..." << flush;
     if (target_data_array.size() == 0 ||
         client->send(target_data_array) != 0) {
+      cout << "BREAK!" << endl;
       break;
     }
+    cout << "DONE" << endl;
   }
+#endif
 
   target.close();
   return 0;
@@ -122,6 +141,18 @@ string HTTPProxy::findHostName(const string &data) const {
   }
 
   return data.substr(start, end - start);
+}
+
+void HTTPProxy::removeKeepAlive(vector<char> &data) const {
+  char *real_data = data.data();
+  const char *replace_str = "Close";
+  for (unsigned i = 0; i < data.size(); ++i) {
+    if (!strcmp(real_data + i, "Keep-Alive")) {
+      memcpy(real_data + i, replace_str, 5);
+      data.erase(data.begin() + i + 5, data.begin() + i + 10);
+      return;
+    }
+  }
 }
 
 bool HTTPProxy::isKeepAlive(const string &data) const {
