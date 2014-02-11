@@ -82,10 +82,12 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   /* Send data client -> target and then target -> client */
   cout << "Data transfer: proxy -> target ..." << flush;
   target.send(client_data_array);
+  cout << " " << client_data_array.size() << " ";
   if (client_data_array.size() == BUFSIZE) {
     while (client_data_array.size() != 0) {
       client_data_array = client->recv(BUFSIZE);
       client->send(client_data_array);
+      cout << " " << client_data_array.size() << " ";
     }
   }
   cout << "DONE" << endl;
@@ -93,10 +95,12 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   cout << "Data transfer: target -> proxy ..." << flush;
   vector<char> target_data_array = target.recv(1024);
   string target_data(target_data_array.data());
+  cout << " " << target_data_array.size() << " ";
   if (target_data_array.size() == BUFSIZE) {
     while (target_data_array.size() != 0) {
       target_data_array = target.recv(BUFSIZE);
       target.send(target_data_array);
+      cout << " " << target_data_array.size() << " ";
     }
   }
   cout << "DONE (" << target_data_array.size() << ")" << endl;
