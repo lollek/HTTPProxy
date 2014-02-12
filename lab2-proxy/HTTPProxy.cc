@@ -96,7 +96,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
       return 1;
     }
   } while ((client_data_array = client->recv(BUFSIZE)).size() > 0);
-  target.send(client_data_array);
   cout << "DONE" << endl;
 
   /* Send data target -> proxy -> client */
@@ -109,7 +108,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
       return 1;
     }
   } while ((target_data_array = target.recv(BUFSIZE)).size() > 0);
-  client->send(target_data_array);
   cout << "DONE (" << target_data_array.size() << ")" << endl;
 
   target.close();
