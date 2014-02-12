@@ -90,26 +90,39 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   /* Send data client -> target */
   cout << "Data transfer: proxy -> target ..." << flush;
-  do {
-    if (target.send(client_data_array) != 0) {
-      cout << "Failed - returning" << endl;
-      return 1;
-    }
-    cout << client_data_array.size() << " bytes sent!" << endl;
-  } while ((client_data_array = client->recv(BUFSIZE)).size() > 0);
+  if (target.send(client_data_array) != 0) {
+    cout << "Failed - returning" << endl;
+    return 1;
+  }
+  if (client_data_array.size() == BUFSIZE) {
+    do {
+      if (target.send(client_data_array) != 0) {
+        cout << "Failed - returning" << endl;
+        return 1;
+      }
+      cout << client_data_array.size() << " bytes sent!" << endl;
+    } while ((client_data_array = client->recv(BUFSIZE)).size() > 0);
+  }
   cout << "DONE" << endl;
 
   /* Send data target -> proxy -> client */
   cout << "Data transfer: target -> proxy ..." << flush;
   vector<char> target_data_array = target.recv(BUFSIZE);
-  do {
-    if (client->send(target_data_array) != 0) {
-      target.close();
-      cout << "Failed - returning" << endl;
-      return 1;
-    }
-    cout << target_data_array.size() << " bytes sent!" << endl;
-  } while ((target_data_array = target.recv(BUFSIZE)).size() > 0);
+  if (client->send(target_data_array) != 0) {
+    target.close();
+    cout << "Failed - returning" << endl;
+    return 1;
+  }
+  if (target_data_array.size() == BUFSIZE) {
+    do {
+      if (client->send(target_data_array) != 0) {
+        target.close();
+        cout << "Failed - returning" << endl;
+        return 1;
+      }
+      cout << target_data_array.size() << " bytes sent!" << endl;
+    } while ((target_data_array = target.recv(BUFSIZE)).size() > 0);
+  }
   cout << "DONE (" << target_data_array.size() << ")" << endl;
 
   target.close();
