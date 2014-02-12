@@ -69,10 +69,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   string client_data(client_data_array.data());
 
   // Check if bad GET URL
-  cout << "BEFORE:" << string(client_data_array.data()) << endl;
   removeKeepAlive(client_data_array);
-  cout << "AFTER: " << string(client_data_array.data()) << endl;
-  // Remove Keep-Alive
 
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
