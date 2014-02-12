@@ -63,87 +63,71 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   const unsigned BUFSIZE = 1024;
 
   /* Receive data from client */
-  cout << "New connection from client ..." << flush;
   vector<char> client_data_array = client->recv(BUFSIZE);
-
   string client_data(client_data_array.data());
-
   // Check if bad GET URL
-  removeKeepAlive(client_data_array);
 
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
-    cout << "No hostname found - return :( string was:\n" 
-         << "SIZE: " << client_data.size() << " "
-         << client_data << endl;
+    cerr << "No hostname found - Data(" << client_data.size() << ")"
+         << client_data << '\n';
     return 1;
   }
+  cout << "Received connection to " << target_hostname << endl;
+
+  removeKeepAlive(client_data_array);
 
   /* Connect to true target */
-  cout << "to " << target_hostname << ":80..." << flush;
   TCPSocket target = TCPSocket(IPV4);
   if (target.connect(findHostName(client_data), 80) != 0 ) {
+    cout << "Failed to connect to " << target_hostname << endl;
     return 1;
   }
-  cout << " DONE" << endl;
 
-  cout << "Sending clientdata1 -> target ..." << flush;
   /* Send first array to target */
   if (target.send(client_data_array) != 0) {
-    cout << "ERR - closing" << endl;
+    cerr << "Error sending data1 to " << target_hostname << endl;
     target.close();
     return 1;
   }
-  cout << "DONE" << endl;
-
-  cout << "Sending clientdata2 -> target ..." << flush;
   /* Now send the rest */
   if (client_data_array.size() == BUFSIZE) {
     while ((client_data_array = client->recv(BUFSIZE)).size()) {
       if (target.send(client_data_array) != 0) {
-        cout << "ERR" << endl;
+        cerr << "Error sending data2 to " << target_hostname << endl;
         target.close();
         return 1;
       }
     }
   }
-  cout << "DONE" << endl;
 
-  cout << "Sending targetdata1 ..." << flush;
   /* Send data from target to client */
   vector<char> target_data_array = target.recv(BUFSIZE);
-  cout << "DONE" << endl;
   /* Check if Content-Type; text/  */
   if (contentIsText(string(target_data_array.data()))) {
-    cout << "Datatype: text\n"
-         << "Sending targetdata2 ..." << flush;
     if (client->send(target_data_array) != 0 ||
         client->send(target.recvall()) != 0) {
       target.close();
-      cout << "ERR" << endl;
+      cerr << "Error sending data(text) from " << target_hostname << endl;
       return 1;
     }
-    cout << "DONE" << endl;
 
   /* Else: binary */
   } else {
-    cout << "Datatype: bin\n"
-         << "Sending targetdata2 ..." << flush;
     if (client->send(target_data_array) != 0) {
-      cout << "ERR" << endl;
+      cerr << "Error sending data(bin) from " << target_hostname << endl;
       target.close();
       return 1;
     }
     if (target_data_array.size() == BUFSIZE) {
       while ((target_data_array = target.recv(BUFSIZE)).size()) {
         if (client->send(target_data_array) != 0) {
-          cout << "ERR" << endl;
+          cerr << "Error sending data(bin) from " << target_hostname << endl;
           target.close();
           return 1;
         }
       }
     }
-    cout << "DONE" << endl;
   }
 
   target.close();
