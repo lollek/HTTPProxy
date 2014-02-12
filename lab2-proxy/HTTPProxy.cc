@@ -67,9 +67,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   string client_data(client_data_array.data());
   // Check if bad GET URL
 
-  cout << "BEFORE:\n" << string(client_data_array.data()) << "\n" << endl;
   removeKeepAlive(client_data_array);
-  cout << "AFTER:\n" << string(client_data_array.data()) << "\n" << endl;
 
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
@@ -108,15 +106,21 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   vector<char> target_data_array = target.recv(BUFSIZE);
   /* Check if Content-Type; text/  */
   if (contentIsText(string(target_data_array.data()))) {
-    if (client->send(target_data_array) != 0 ||
-        client->send(target.recvall()) != 0) {
+    vector<char> full_contents = target_data_array;
+    while ((target_data_array = target.recv(BUFSIZE)).size()) {
+      full_contents.insert(full_contents.end(),
+                           target_data_array.begin(),
+                           target_data_array.end());
+    }
+    if (client->send(full_contents) != 0) {
       target.close();
       cerr << "Error sending data(text) from " << target_hostname << endl;
       return 1;
     }
+  }
 
   /* Else: binary */
-  } else {
+  else {
     if (client->send(target_data_array) != 0) {
       cerr << "Error sending data(bin) from " << target_hostname << endl;
       target.close();
