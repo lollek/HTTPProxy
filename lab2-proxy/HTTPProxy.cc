@@ -97,8 +97,9 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   cout << "DONE" << endl;
 
   /* If keep-alive: do some loopy stuff */
-  bool do_break = false;
-  while (isKeepAlive(client_data) && !do_break) {
+  while (isKeepAlive(client_data)) {
+
+    /* Send client -> proxy -> target */
     cout << "(KEEP-ALIVE) Data transfer: client -> proxy ..." << flush;
     client_data_array = client->recvall();
     cout << "DONE (" << client_data_array.size() << ")" << endl;
@@ -111,7 +112,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     cout << "DONE" << endl;
 
 
-
+    /* Send target -> proxy -> client */
     cout << "(KEEP-ALIVE) Data transfer: target -> proxy ..." << flush;
     target_data_array = target.recvall();
     cout << "DONE (" << target_data_array.size() << ")" << endl;
@@ -129,45 +130,43 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 }
 
 string HTTPProxy::findHostName(const string &data) const {
-  /* Return the Host: www.google.com part 
-   * Should work with HTTP/1.1 but maybe not HTTP/1.0 */
+  /* Check for Host: www.hostname.dom\r\n */
   const string start_delim = "Host: ";
   unsigned start = data.find(start_delim);
-  if (start == string::npos) {
-    return "";
-  } else {
+  if (start != string::npos) {
     start += start_delim.length();
+
+    unsigned end = start;
+    while (isalpha(data[end]) ||
+           isdigit(data[end]) ||
+           data[end] == '.'   ||
+           data[end] == '-' ) {
+      ++end;
+    }
+    return data.substr(start, end - start);
   }
 
-  unsigned end = start;
-  while (isalpha(data[end]) ||
-         isdigit(data[end]) ||
-         data[end] == '.'   ||
-         data[end] == '-' ) {
-    ++end;
-  }
-
-  return data.substr(start, end - start);
-}
-
-void HTTPProxy::removeKeepAlive(vector<char> &data) const {
-  char *real_data = data.data();
-  const char *replace_str = "close";
-  cout << "OLD DATA (" << data.size() << "):\n" << data.data() << endl;
-  for (unsigned i = 0; i < data.size(); ++i) {
-    if (!strncmp(real_data + i, "Keep-Alive", 10) ||
-        !strncmp(real_data + i, "keep-alive", 10)) {
-      cout << "Removed keepalive" << endl;
-      memcpy(real_data + i, replace_str, 5);
-      data.erase(data.begin() + i + 5, data.begin() + i + 10);
-      if (!strncmp(real_data + i, "close\r\n\r\n", 9)) {
-        cout << "replace - OK! i = " << i << endl;
-      }
-  cout << "NEW DATA (" << data.size() << "):\n" << data.data() << endl;
-      return;
+  /* Otherwise, check for COMMAND https?://www.hostname.com\r\n */
+  for (start = 0; data[start] != '\n'; ++start) {
+    if (data[start] == ':' && data[start +1] == '/' && data[start +2] == '/') {
+      start += 3;
+      break;
     }
   }
 
+  if (data[start] != '\n') {
+    unsigned end = start;
+    while (isalpha(data[end]) ||
+           isdigit(data[end]) ||
+           data[end] == '.'   ||
+           data[end] == '-' ) {
+      ++end;
+    }
+    return data.substr(start, end - start);
+  }
+
+  /* If all fails, return empty string */
+  return "";
 }
 
 bool HTTPProxy::isKeepAlive(const string &data) const {

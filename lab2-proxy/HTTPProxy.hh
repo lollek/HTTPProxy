@@ -22,7 +22,6 @@ class HTTPProxy {
     /* Data matching methods */
     std::string findHostName(const std::string &data) const;
     bool isKeepAlive(const std::string &data) const;
-    void removeKeepAlive(std::vector<char> &data) const;
 
     /* Variables */
     const int port_;
