@@ -220,7 +220,7 @@ void HTTPProxy::removeKeepAlive(vector<char> &data) const {
         !strncmp(datadata + i, open2, openlen)) {
       i += 12;
       memcpy(datadata + i, "Close", 5);
-      data.erase(data.begin() +i +5, data.begin() +i +13);
+      data.erase(data.begin() +i +5, data.begin() +i +9);
       return;
     } else if (!strncmp(datadata + i, closed1, closedlen) ||
                !strncmp(datadata + i, closed2, closedlen)) {
