@@ -184,6 +184,8 @@ bool HTTPProxy::isKeepAlive(const string &data) const {
       return true;
     }
   }
+    
+   
 
   /* If not found, use keep-alive if HTTP/1.1 or 1.2 - else close */
   else {
@@ -195,3 +197,31 @@ bool HTTPProxy::isKeepAlive(const string &data) const {
     }
   }
 }
+
+
+
+bool HTTPProxy::isBadUrl(const string &data) const {
+    /* Check if the url contains bad words */
+    const string not_allowed[] = {'norrkoping', 'parishilton', 'spongebob', 'britneyspears'};
+    for (int i=0; i<4; i++) {
+        if (data.find(not_allowed[i]) == string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+bool HTTPProxy::hasBadContent(const string &data) const {
+    /* Check if the content contains bad words */
+    const string not_allowed[] = {"Norrköping", "Paris Hilton", "SpongeBob", "BritneySpears"};
+    for (int i=0; i<4; i++) {
+        if (data.find(not_allowed[i]) == string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
