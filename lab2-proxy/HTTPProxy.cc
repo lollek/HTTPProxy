@@ -69,6 +69,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   string client_data(client_data_array.data());
 
   // Check if bad GET URL
+  removeKeepAlive(client_data_array);
   // Remove Keep-Alive
 
   string target_hostname = findHostName(client_data);
@@ -229,3 +230,36 @@ bool HTTPProxy::contentIsText(const string &msg) const {
   return msg.find("Content-Type: text/") != string::npos;
 }
 
+void HTTPProxy::removeKeepAlive(vector<char> &data) const {
+  char *datadata = data.data();
+  const char *open1 = "Connection: Keep-Alive";
+  const char *open2 = "Connection: keep-alive";
+  unsigned openlen = sizeof(open1);
+  const char *closed1 = "Connection: Close";
+  const char *closed2 = "Connection: close";
+  unsigned closedlen = sizeof(closed1);
+  for (unsigned i = 0; i < data.size(); ++i) {
+    if (!strncmp(datadata + i, open1, openlen) ||
+        !strncmp(datadata + i, open2, openlen)) {
+      i += 12;
+      memcpy(datadata + i, "Close", 5);
+      data.erase(data.begin() +i +5, data.begin() +i +11);
+      return;
+    } else if (!strncmp(datadata + i, closed1, closedlen) ||
+               !strncmp(datadata + i, closed2, closedlen)) {
+      return;
+    }
+  }
+
+  for (unsigned i = 0; i < data.size(); ++i) {
+    if (!strncmp(datadata + i, "\r\n", 2)) {
+      i += 2;
+      const char *tmpdata = "Connection: Close\r\n";
+      unsigned tmpdatalen = sizeof(tmpdata);
+      vector<char> tmp(tmpdatalen);
+      memcpy(tmp.data(), tmpdata, tmpdatalen);
+      data.insert(data.begin() +i +1, tmp.begin(), tmp.end());
+      return;
+    }
+  }
+}
