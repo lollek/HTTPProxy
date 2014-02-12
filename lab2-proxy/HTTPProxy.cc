@@ -174,37 +174,6 @@ string HTTPProxy::findHostName(const string &data) const {
   return "";
 }
 
-bool HTTPProxy::isKeepAlive(const string &data) const {
-  /* Check first if there's an (Proxy-)Connection: (keep-alive|close) */
-  unsigned start = data.find("Connection: ");
-  if (start != string::npos) {
-    start += strlen("Connection: ");
-    string result = data.substr(start, strlen("close"));
-    for (auto p = result.begin(); p != result.end(); ++p) {
-      *p = tolower(*p);
-    }
-    if (result == "close") {
-      return false;
-    } else {
-      return true;
-    }
-  }
-    
-   
-
-  /* If not found, use keep-alive if HTTP/1.1 or 1.2 - else close */
-  else {
-    if (data.find("HTTP/1.1") != string::npos ||
-        data.find("HTTP/1.2") != string::npos) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-}
-
-
-
 bool HTTPProxy::isBadUrl(const string &data) const {
     /* Check if the url contains bad words */
     const string not_allowed[] = {"norrkoping",
