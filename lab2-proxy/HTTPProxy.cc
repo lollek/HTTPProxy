@@ -89,14 +89,22 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   cout << "Sending clientdata1 -> target ..." << flush;
   /* Send first array to target */
-  target.send(client_data_array);
+  if (target.send(client_data_array) != 0) {
+    cout << "ERR - closing" << endl;
+    target.close();
+    return 1;
+  }
   cout << "DONE" << endl;
 
   cout << "Sending clientdata2 -> target ..." << flush;
   /* Now send the rest */
   if (client_data_array.size() == BUFSIZE) {
     while ((client_data_array = client->recv(BUFSIZE)).size()) {
-      target.send(client_data_array);
+      if (target.send(client_data_array) != 0) {
+        cout << "ERR" << endl;
+        target.close();
+        return 1;
+      }
     }
   }
   cout << "DONE" << endl;
@@ -109,18 +117,30 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   if (contentIsText(string(target_data_array.data()))) {
     cout << "Datatype: text\n"
          << "Sending targetdata2 ..." << flush;
-    client->send(target_data_array);
-    client->send(target.recvall());
+    if (client->send(target_data_array) != 0 ||
+        client->send(target.recvall()) != 0) {
+      target.close();
+      cout << "ERR" << endl;
+      return 1;
+    }
     cout << "DONE" << endl;
 
   /* Else: binary */
   } else {
     cout << "Datatype: bin\n"
          << "Sending targetdata2 ..." << flush;
-    client->send(target_data_array);
+    if (client->send(target_data_array) != 0) {
+      cout << "ERR" << endl;
+      target.close();
+      return 1;
+    }
     if (target_data_array.size() == BUFSIZE) {
       while ((target_data_array = target.recv(BUFSIZE)).size()) {
-        client->send(target_data_array);
+        if (client->send(target_data_array) != 0) {
+          cout << "ERR" << endl;
+          target.close();
+          return 1;
+        }
       }
     }
     cout << "DONE" << endl;
