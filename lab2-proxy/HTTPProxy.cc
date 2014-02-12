@@ -210,15 +210,17 @@ void HTTPProxy::removeKeepAlive(vector<char> &data) const {
   const char *open1 = "Connection: Keep-Alive";
   const char *open2 = "Connection: keep-alive";
   unsigned openlen = sizeof(open1);
+
   const char *closed1 = "Connection: Close";
   const char *closed2 = "Connection: close";
   unsigned closedlen = sizeof(closed1);
+
   for (unsigned i = 0; i < data.size(); ++i) {
     if (!strncmp(datadata + i, open1, openlen) ||
         !strncmp(datadata + i, open2, openlen)) {
       i += 12;
       memcpy(datadata + i, "Close", 5);
-      data.erase(data.begin() +i +5, data.begin() +i +11);
+      data.erase(data.begin() +i +5, data.begin() +i +13);
       return;
     } else if (!strncmp(datadata + i, closed1, closedlen) ||
                !strncmp(datadata + i, closed2, closedlen)) {
