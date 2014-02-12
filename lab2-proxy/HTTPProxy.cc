@@ -207,36 +207,43 @@ bool HTTPProxy::contentIsText(const string &msg) const {
 
 void HTTPProxy::removeKeepAlive(vector<char> &data) const {
   char *datadata = data.data();
+
   const char *open1 = "Connection: Keep-Alive";
   const char *open2 = "Connection: keep-alive";
-  unsigned openlen = sizeof(open1);
 
   const char *closed1 = "Connection: Close";
   const char *closed2 = "Connection: close";
-  unsigned closedlen = sizeof(closed1);
 
   for (unsigned i = 0; i < data.size(); ++i) {
-    if (!strncmp(datadata + i, open1, openlen) ||
-        !strncmp(datadata + i, open2, openlen)) {
+
+    /* If Connection: Keep-Alive is found */
+    if (!strncmp(datadata + i, open1, strlen(open1)) ||
+        !strncmp(datadata + i, open2, strlen(open2))) {
       i += 12;
       memcpy(datadata + i, "Close", 5);
-      data.erase(data.begin() +i +5, data.begin() +i +10);
+      data.erase(data.begin() +i +5, data.begin() +i +11);
       return;
-    } else if (!strncmp(datadata + i, closed1, closedlen) ||
-               !strncmp(datadata + i, closed2, closedlen)) {
+    }
+
+    /* If Connection: close is found */
+    else if (!strncmp(datadata + i, closed1, strlen(closed1)) ||
+             !strncmp(datadata + i, closed2, strlen(closed2))) {
+      return;
+    }
+
+    /* Else if \r\n\r\n, we have reached the end of the header
+     * In that case we manually add it */
+    else if (!strncmp(datadata + i, "\r\n\r\n", 4)) {
+      i += 2;
+      const char *raw_data_to_add = "Connection: Close\r\n";
+      vector<char> data_to_add(strlen(raw_data_to_add));
+      memcpy(data_to_add.data(), raw_data_to_add, strlen(raw_data_to_add));
+      data.insert(data.begin() +i +1, data_to_add.begin(), data_to_add.end());
       return;
     }
   }
 
-  for (unsigned i = 0; i < data.size(); ++i) {
-    if (!strncmp(datadata + i, "\r\n", 2)) {
-      i += 2;
-      const char *tmpdata = "Connection: Close\r\n";
-      unsigned tmpdatalen = sizeof(tmpdata);
-      vector<char> tmp(tmpdatalen);
-      memcpy(tmp.data(), tmpdata, tmpdatalen);
-      data.insert(data.begin() +i +1, tmp.begin(), tmp.end());
-      return;
-    }
-  }
+  cerr << "EOL at removeKeepAlive reached! This should not happend!\n";
+  return;
+
 }
