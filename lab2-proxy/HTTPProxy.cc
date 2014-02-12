@@ -63,7 +63,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   const unsigned BUFSIZE = 1024;
 
   /* Receive data from client */
-  cout << "Data transfer: client -> proxy ..." << flush;
+  cout << "New connection from client ..." << flush;
   vector<char> client_data_array = client->recv(BUFSIZE);
 
   string client_data(client_data_array.data());
@@ -78,52 +78,45 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
          << client_data << endl;
     return 1;
   }
-  cout << "DONE (" << client_data_array.size() << ")" << endl;
 
   /* Connect to true target */
-  cout << "Connecting proxy -> " << target_hostname << ":80..." << flush;
+  cout << "to " << target_hostname << ":80..." << flush;
   TCPSocket target = TCPSocket(IPV4);
   if (target.connect(findHostName(client_data), 80) != 0 ) {
     return 1;
   }
   cout << " DONE" << endl;
 
-  /* Send data client -> target */
-  cout << "Data transfer: proxy -> target ..." << flush;
-  if (target.send(client_data_array) != 0) {
-    cout << "Failed - returning" << endl;
-    return 1;
-  }
+  cout << "Sending clientdata1 -> target ..." << flush;
+  /* Send first array to target */
+  target.send(client_data_array);
+  cout << "DONE" << endl;
+
+  cout << "Sending clientdata2 -> target ..." << flush;
+  /* Now send the rest */
   if (client_data_array.size() == BUFSIZE) {
-    do {
-      if (target.send(client_data_array) != 0) {
-        cout << "Failed - returning" << endl;
-        return 1;
-      }
-      cout << client_data_array.size() << " bytes sent!" << endl;
-    } while ((client_data_array = client->recv(BUFSIZE)).size() > 0);
+    while ((client_data_array = client->recv(BUFSIZE)).size()) {
+      target.send(client_data_array);
+    }
   }
   cout << "DONE" << endl;
 
-  /* Send data target -> proxy -> client */
-  cout << "Data transfer: target -> proxy ..." << flush;
+  /* Send data from target to client */
   vector<char> target_data_array = target.recv(BUFSIZE);
-  if (client->send(target_data_array) != 0) {
-    target.close();
-    cout << "Failed - returning" << endl;
-    return 1;
-  }
-  if (target_data_array.size() == BUFSIZE) {
-    do {
-      if (client->send(target_data_array) != 0) {
-        target.close();
-        cout << "Failed - returning" << endl;
-        return 1;
+  /* Check if Content-Type; text/  */
+  if (contentIsText(string(target_data_array.data()))) {
+    client->send(target_data_array);
+    client->send(target.recvall());
+
+  /* Else: binary */
+  } else {
+    client->send(target_data_array);
+    if (target_data_array.size() == BUFSIZE) {
+      while ((target_data_array = target.recv(BUFSIZE)).size()) {
+        client->send(target_data_array);
       }
-      cout << target_data_array.size() << " bytes sent!" << endl;
-    } while ((target_data_array = target.recv(BUFSIZE)).size() > 0);
+    }
   }
-  cout << "DONE (" << target_data_array.size() << ")" << endl;
 
   target.close();
   return 0;
@@ -224,5 +217,7 @@ bool HTTPProxy::hasBadContent(const string &data) const {
     return false;
 }
 
-
+bool HTTPProxy::contentIsText(const string &msg) const {
+  return msg.find("Content-Type: text/") != string::npos;
+}
 

@@ -24,6 +24,7 @@ class HTTPProxy {
     bool isKeepAlive(const std::string &data) const;
     bool isBadUrl(const std::string &data) const;
     bool hasBadContent(const std::string &data) const;
+    bool contentIsText(const std::string &msg) const;
 
     /* Variables */
     const int port_;
