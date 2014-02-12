@@ -101,21 +101,29 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   }
   cout << "DONE" << endl;
 
+  cout << "Sending targetdata1 ..." << flush;
   /* Send data from target to client */
   vector<char> target_data_array = target.recv(BUFSIZE);
+  cout << "DONE" << endl;
   /* Check if Content-Type; text/  */
   if (contentIsText(string(target_data_array.data()))) {
+    cout << "Datatype: text\n"
+         << "Sending targetdata2 ..." << flush;
     client->send(target_data_array);
     client->send(target.recvall());
+    cout << "DONE" << endl;
 
   /* Else: binary */
   } else {
+    cout << "Datatype: bin\n"
+         << "Sending targetdata2 ..." << flush;
     client->send(target_data_array);
     if (target_data_array.size() == BUFSIZE) {
       while ((target_data_array = target.recv(BUFSIZE)).size()) {
         client->send(target_data_array);
       }
     }
+    cout << "DONE" << endl;
   }
 
   target.close();
