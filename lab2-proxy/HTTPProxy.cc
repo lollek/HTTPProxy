@@ -67,6 +67,8 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   string client_data(client_data_array.data());
   // Check if bad GET URL
 
+  removeKeepAlive(client_data_array);
+
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
     cerr << "No hostname found - Data(" << client_data.size() << ")"
@@ -75,7 +77,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   }
   cout << "Received connection to " << target_hostname << endl;
 
-  removeKeepAlive(client_data_array);
 
   /* Connect to true target */
   TCPSocket target = TCPSocket(IPV4);
