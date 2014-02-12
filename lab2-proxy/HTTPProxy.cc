@@ -222,7 +222,7 @@ void HTTPProxy::removeKeepAlive(vector<char> &data) const {
       i += 12;
       memcpy(datadata + i, "Close", 5);
       memcpy(datadata + i + 5, datadata + i + 11, data.size() - i - 5);
-      data.resize(data.size() - i - 5);
+      data.resize(data.size() - 5);
       //data.erase(data.begin() +i +5, data.begin() +i +11);
       return;
     }
