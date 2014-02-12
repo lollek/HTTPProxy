@@ -60,10 +60,17 @@ int HTTPProxy::run() const {
 
 int HTTPProxy::handleRequest(TCPSocket *client) const {
 
+  const unsigned BUFSIZE = 1024;
+
   /* Receive data from client */
   cout << "Data transfer: client -> proxy ..." << flush;
-  vector<char> client_data_array = client->recvall();
+  vector<char> client_data_array = client->recv(BUFSIZE);
+
   string client_data(client_data_array.data());
+
+  // Check if bad GET URL
+  // Remove Keep-Alive
+
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
     cout << "No hostname found - return :( string was:\n" 
@@ -83,47 +90,27 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   /* Send data client -> target */
   cout << "Data transfer: proxy -> target ..." << flush;
+  do {
+    if (target.send(client_data_array) != 0) {
+      cout << "Failed - returning" << endl;
+      return 1;
+    }
+  } while ((client_data_array = client->recv(BUFSIZE)).size() > 0);
   target.send(client_data_array);
   cout << "DONE" << endl;
 
   /* Send data target -> proxy -> client */
   cout << "Data transfer: target -> proxy ..." << flush;
-  vector<char> target_data_array = target.recvall();
+  vector<char> target_data_array = target.recv(BUFSIZE);
+  do {
+    if (client->send(target_data_array) != 0) {
+      target.close();
+      cout << "Failed - returning" << endl;
+      return 1;
+    }
+  } while ((target_data_array = target.recv(BUFSIZE)).size() > 0);
   client->send(target_data_array);
   cout << "DONE (" << target_data_array.size() << ")" << endl;
-
-  cout << "Data transfer: proxy -> client ..." << flush;
-  client->send(target_data_array);
-  cout << "DONE" << endl;
-
-  /* If keep-alive: do some loopy stuff */
-  while (isKeepAlive(client_data)) {
-
-    /* Send client -> proxy -> target */
-    cout << "(KEEP-ALIVE) Data transfer: client -> proxy ..." << flush;
-    client_data_array = client->recvall();
-    cout << "DONE (" << client_data_array.size() << ")" << endl;
-    cout << "(KEEP-ALIVE) Data transfer: proxy -> target ..." << flush;
-    if (client_data_array.size() == 0 ||
-        target.send(client_data_array) != 0) {
-      cout << "BREAK!" << endl;
-      break;
-    }
-    cout << "DONE" << endl;
-
-
-    /* Send target -> proxy -> client */
-    cout << "(KEEP-ALIVE) Data transfer: target -> proxy ..." << flush;
-    target_data_array = target.recvall();
-    cout << "DONE (" << target_data_array.size() << ")" << endl;
-    cout << "(KEEP-ALIVE) Data transfer: proxy -> client ..." << flush;
-    if (target_data_array.size() == 0 ||
-        client->send(target_data_array) != 0) {
-      cout << "BREAK!" << endl;
-      break;
-    }
-    cout << "DONE" << endl;
-  }
 
   target.close();
   return 0;
@@ -202,7 +189,8 @@ bool HTTPProxy::isKeepAlive(const string &data) const {
 
 bool HTTPProxy::isBadUrl(const string &data) const {
     /* Check if the url contains bad words */
-    const string not_allowed[] = {'norrkoping', 'parishilton', 'spongebob', 'britneyspears'};
+    const string not_allowed[] = {"norrkoping",
+      "parishilton", "spongebob", "britneyspears"};
     for (int i=0; i<4; i++) {
         if (data.find(not_allowed[i]) == string::npos) {
             return true;
