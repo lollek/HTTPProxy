@@ -25,6 +25,7 @@ class HTTPProxy {
     bool hasBadContent(const std::string &data) const;
     bool contentIsText(const std::string &msg) const;
     void removeKeepAlive(std::vector<char> &data) const;
+    void shortenLongGets(std::vector<char> &msg) const;
 
     /* Variables */
     const int port_;

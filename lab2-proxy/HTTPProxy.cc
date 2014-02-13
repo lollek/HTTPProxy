@@ -68,6 +68,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   // Check if bad GET URL
 
   removeKeepAlive(client_data_array);
+  shortenLongGets(client_data_array);
 
   string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
@@ -75,7 +76,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
          << client_data << '\n';
     return 1;
   }
-  cout << "Received connection to " << target_hostname << endl;
 
 
   /* Connect to true target */
@@ -137,6 +137,8 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     }
   }
 
+  cout << "Received connection to " << target_hostname 
+       << "\nData was " << string(client_data_array.data()) << endl;
   target.close();
   return 0;
 }
@@ -249,7 +251,42 @@ void HTTPProxy::removeKeepAlive(vector<char> &data) const {
     }
   }
 
-  cerr << "EOL at removeKeepAlive reached! This should not happend!\n";
+  cerr << "EOL at removeKeepAlive reached! Data was:\n" 
+       << string(datadata) << endl;
   return;
 
+}
+
+void HTTPProxy::shortenLongGets(vector<char> &msg) const {
+  /* This function changes a request from
+   * "GET http://www.youtube.com\r\n" to "GET /\r\n"
+   * to get around some issues */
+  char *msg_ptr = msg.data();
+
+  for (unsigned i = 0; i < msg.size(); ++i) {
+    /* Look for first space */
+    if (msg[i] == ' ') {
+      if (msg[++i] == '/') {
+        return;
+      }
+      unsigned end = i;
+      while (msg[++end] != '/') ;
+      while (msg[++end] != '/') ;
+      while (msg[++end] != '/') ;
+      memcpy(msg_ptr +i, msg_ptr +end, msg.size() - end);
+      msg.resize(msg.size() - (end - i));
+      return;
+
+    /* Otherwise if it's letters, continue */
+    } else if (isalpha(msg[i])) {
+      continue;
+
+    /* There shouldn't be anything else, so in that case we just return */
+    } else {
+      cerr << "Err: shortenLongGets received a \"" << msg[i]
+           << "\"!\n";
+      return;
+    }
+  }
+  cerr << "Err: shortenLongGets ran out of data before the GET was over!\n";
 }
