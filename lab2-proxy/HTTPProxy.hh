@@ -26,7 +26,7 @@ class HTTPProxy {
 
     /* Data reading methods */
     std::string findHostName(const std::vector<char> &data) const;
-    bool isBadURL(const std::vector<char> &data) const;
+    bool hasBlockedContents(const std::vector<char> &data) const;
     bool contentIsText(const std::string &msg) const;
 
     /* Data modification methods */

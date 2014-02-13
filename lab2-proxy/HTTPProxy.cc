@@ -65,21 +65,19 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   const unsigned BUFSIZE = 1024;
 
   /* Receive data from client and do some checks */
-  vector<char> client_data_array = client->recv(BUFSIZE);
-  string client_data(client_data_array.data());
-  if (isBadURL(client_data_array)) {
+  vector<char> client_data = client->recv(BUFSIZE);
+  if (hasBlockedContents(client_data)) {
     return redirectToError1(client);
   }
 
-  string target_hostname = findHostName(client_data_array);
+  string target_hostname = findHostName(client_data);
   if (target_hostname.size() == 0) {
-    cerr << "No hostname found - Data(" << client_data.size() << ")"
-         << client_data << '\n';
+    cerr << "Received a request without hostname!\n";
     return 1;
   }
 
-  removeKeepAlive(client_data_array);
-  shortenLongGets(client_data_array);
+  removeKeepAlive(client_data);
+  shortenLongGets(client_data);
 
   /* Connect to true target */
   TCPSocket target = TCPSocket(IPV4);
@@ -89,16 +87,16 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   }
 
   /* Send data-chunk to target */
-  if (target.send(client_data_array) != 0) {
+  if (target.send(client_data) != 0) {
     cerr << "Error sending data1 to " << target_hostname << endl;
     target.close();
     return 1;
   }
 
   /* Now check the client for more data (e.g. POST) and send it as well */
-  if (client_data_array.size() == BUFSIZE) {
-    while ((client_data_array = client->recv(BUFSIZE)).size()) {
-      if (target.send(client_data_array) != 0) {
+  if (client_data.size() == BUFSIZE) {
+    while ((client_data = client->recv(BUFSIZE)).size()) {
+      if (target.send(client_data) != 0) {
         cerr << "Error sending data2 to " << target_hostname << endl;
         target.close();
         return 1;
@@ -116,7 +114,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     while ((target_data = target.recv(BUFSIZE)).size()) {
       all_data.insert(all_data.end(), target_data.begin(), target_data.end());
     }
-    if (isBadURL(all_data)) {
+    if (hasBlockedContents(all_data)) {
       target.close();
       return redirectToError2(client);
     }
@@ -162,7 +160,6 @@ int HTTPProxy::redirectToError2(TCPSocket *client) const {
 }
 
 int HTTPProxy::redirectToURL(TCPSocket *client, const char *url) const {
-  //TODO: Make socket->send take char * as well
   if (url == NULL) {
     return 1;
   }
@@ -218,7 +215,7 @@ string HTTPProxy::findHostName(const vector<char> &data) const {
   return "";
 }
 
-bool HTTPProxy::isBadURL(const vector<char> &data) const {
+bool HTTPProxy::hasBlockedContents(const vector<char> &data) const {
   /* Check if the url contains bad words */
 
   const char *data_ptr = data.data();
