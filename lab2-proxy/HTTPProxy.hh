@@ -21,7 +21,7 @@ class HTTPProxy {
 
     /* Data matching methods */
     std::string findHostName(const std::string &data) const;
-    bool isBadUrl(const std::string &data) const;
+    bool isBadURL(const std::vector<char> &data) const;
     bool hasBadContent(const std::string &data) const;
     bool contentIsText(const std::string &msg) const;
     void removeKeepAlive(std::vector<char> &data) const;

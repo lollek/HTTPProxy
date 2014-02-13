@@ -1,4 +1,5 @@
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include <vector>
@@ -65,7 +66,14 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   /* Receive data from client */
   vector<char> client_data_array = client->recv(BUFSIZE);
   string client_data(client_data_array.data());
-  // Check if bad GET URL
+  if (isBadURL(client_data_array)) {
+    cout << "Redirected client due to bad request" << endl;
+    const char *redir_ptr = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\nConnection: close\r\n\r\n";
+    vector<char> redir_array(strlen(redir_ptr));
+    memcpy(redir_array.data(), redir_ptr, strlen(redir_ptr));
+    client->send(redir_array);
+    return 0;
+  }
 
   removeKeepAlive(client_data_array);
   shortenLongGets(client_data_array);
@@ -183,16 +191,25 @@ string HTTPProxy::findHostName(const string &data) const {
   return "";
 }
 
-bool HTTPProxy::isBadUrl(const string &data) const {
-    /* Check if the url contains bad words */
-    const string not_allowed[] = {"norrkoping",
-      "parishilton", "spongebob", "britneyspears"};
-    for (int i=0; i<4; i++) {
-        if (data.find(not_allowed[i]) == string::npos) {
-            return true;
-        }
+bool HTTPProxy::isBadURL(const vector<char> &data) const {
+  /* Check if the url contains bad words */
+
+  const char *data_ptr = data.data();
+  const vector<const char *> wordlist = {
+    "Norrkoping", "ParisHilton", "SpongeBob", "BritneySpears",
+    "Paris%20Hilton", "Sponge%20Bob", "Britney%20Spears",
+    "Paris_Hilton", "Sponge_Bob", "Britney_Spears",
+    "Paris+Hilton", "Sponge+Bob", "Britney+Spears"
+  };
+  for (unsigned i = 0; i < data.size(); ++i) {
+    for (unsigned word = 0; word < wordlist.size(); ++word) {
+      if (strlen(wordlist[word]) <= data.size() -i &&
+          !strncasecmp(data_ptr + i, wordlist[word], strlen(wordlist[word]))) {
+        return true;
+      }
     }
-    return false;
+  }
+  return false;
 }
 
 
