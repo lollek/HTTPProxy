@@ -64,8 +64,8 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   const unsigned BUFSIZE = 1024;
 
-  /* Receive data from client and do some checks */
-  vector<char> client_data = client->recv(BUFSIZE);
+  /* Receive data from client */
+  vector<char> client_data = client->recvall();
   if (hasBlockedContents(client_data)) {
     return redirectToError1(client);
   }
@@ -93,17 +93,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     return 1;
   }
 
-  /* Now check the client for more data (e.g. POST) and send it as well */
-  if (client_data.size() == BUFSIZE) {
-    while ((client_data = client->recv(BUFSIZE)).size()) {
-      if (target.send(client_data) != 0) {
-        cerr << "Error sending data2 to " << target_hostname << endl;
-        target.close();
-        return 1;
-      }
-    }
-  }
-
   /* Send data from target to client */
   vector<char> target_data = target.recv(BUFSIZE);
 
@@ -125,7 +114,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     }
   }
 
-  /* Otherwise, we stream it */
+  /* Otherwise, we just pass it on */
   else {
     if (client->send(target_data) != 0) {
       cerr << "Error sending data(bin) from " << target_hostname << endl;
@@ -282,7 +271,7 @@ void HTTPProxy::removeKeepAlive(vector<char> &data) const {
 
     /* Else if \r\n\r\n, we have reached the end of the header
      * In that case we manually add it */
-    else if (!strncmp(data_ptr + i, "\r\n\r\n", 4)) {
+    else if (!strncmp(data_ptr + i, "\r\n\r\n", strlen("\r\n\r\n"))) {
       i += 2;
       const char *raw_data_to_add = "Connection: Close\r\n";
       vector<char> data_to_add(strlen(raw_data_to_add));
