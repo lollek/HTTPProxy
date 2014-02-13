@@ -7,7 +7,6 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
-#define __TCPSOCKET_HIDDEN_FROM_SOURCE__
 #include "TCPSocket.hh"
 
 using namespace std;
@@ -83,8 +82,8 @@ int TCPSocket::construct(const char *hostname, const char *port) {
         }
       }
 
-      if (bind(sock_, p->ai_addr, p->ai_addrlen) == -1) {
-        close(sock_);
+      if (::bind(sock_, p->ai_addr, p->ai_addrlen) == -1) {
+        ::close(sock_);
         perror("bind");
         sock_ = -1;
       } else {
@@ -92,8 +91,8 @@ int TCPSocket::construct(const char *hostname, const char *port) {
       }
 
     } else {
-      if (connect(sock_, p->ai_addr, p->ai_addrlen) == -1) {
-        close(sock_);
+      if (::connect(sock_, p->ai_addr, p->ai_addrlen) == -1) {
+        ::close(sock_);
         perror("connect");
         sock_ = -1;
       } else {
@@ -107,28 +106,28 @@ int TCPSocket::construct(const char *hostname, const char *port) {
   return sock_ == -1;
 }
 
-int TCPSocket::_connect(const string &hostname, int port) {
+int TCPSocket::connect(const string &hostname, int port) {
   strncpy(ip_, hostname.c_str(), INET6_ADDRSTRLEN);
   ip_[INET6_ADDRSTRLEN -1] = '\0';
   return construct(hostname.c_str(), to_string(port).c_str());
 }
 
-int TCPSocket::_bind(int port) {
+int TCPSocket::bind(int port) {
   return construct(NULL, to_string(port).c_str());
 }
 
-int TCPSocket::_listen(int num) const {
-  if (listen(sock_, num) == -1) {
+int TCPSocket::listen(int num) const {
+  if (::listen(sock_, num) == -1) {
     perror("listen");
     return 1;
   }
   return 0;
 }
 
-TCPSocket *TCPSocket::_accept() const {
+TCPSocket *TCPSocket::accept() const {
   struct sockaddr_storage client_addr;
   socklen_t socklen = sizeof(client_addr);
-  int client = accept(sock_, (struct sockaddr *)&client_addr, &socklen);
+  int client = ::accept(sock_, (struct sockaddr *)&client_addr, &socklen);
   if (client == -1) {
     return NULL;
   }
@@ -145,9 +144,9 @@ TCPSocket *TCPSocket::_accept() const {
   return new TCPSocket(client, client_ip, ip_version_);
 }
 
-vector<char> TCPSocket::_recv(int num) const {
+vector<char> TCPSocket::recv(int num) const {
   vector<char> data(num);
-  int datalen = recv(sock_, data.data(), num, 0);
+  int datalen = ::recv(sock_, data.data(), num, 0);
   if (datalen == -1) {
     cerr << "Failed to read from client\n";
     return vector<char>(0);
@@ -160,7 +159,7 @@ vector<char> TCPSocket::_recv(int num) const {
 vector<char> TCPSocket::recvall() const {
   const unsigned BUFSIZE = 1024;
   vector<char> data(BUFSIZE);
-  int datalen = recv(sock_, data.data(), BUFSIZE, 0);
+  int datalen = ::recv(sock_, data.data(), BUFSIZE, 0);
   if (datalen == -1 ) {
     cerr << "Failed to read from client\n";
     return vector<char>(0);
@@ -169,7 +168,7 @@ vector<char> TCPSocket::recvall() const {
 
     if (datalen == BUFSIZE) {
       vector<char> tmp(BUFSIZE);
-      while ((datalen = recv(sock_, tmp.data(), BUFSIZE, 0)) > 0) {
+      while ((datalen = ::recv(sock_, tmp.data(), BUFSIZE, 0)) > 0) {
         for (int i = 0; i < datalen; ++i) {
           data.push_back(tmp[i]);
         }
@@ -182,11 +181,18 @@ vector<char> TCPSocket::recvall() const {
   }
 }
 
-int TCPSocket::_send(const vector<char> &message) const {
-  const char *data = message.data();
-  int data_left = message.size();
+int TCPSocket::send(const vector<char> &message) const {
+  return send(message.data(), message.size());
+}
+
+int TCPSocket::send(const string &message) const {
+  return send(message.c_str(), message.length());
+}
+
+int TCPSocket::send(const char *data, long data_length) const {
+  int data_left = data_length;
   while (data_left > 0) {
-    int tmp = send(sock_, data +message.size() -data_left, data_left, 0);
+    int tmp = ::send(sock_, data +data_length -data_left, data_left, 0);
     if (tmp == -1) {
       cerr << "Failed to send!\n";
       return 1;
@@ -196,8 +202,8 @@ int TCPSocket::_send(const vector<char> &message) const {
   return 0;
 }
 
-void TCPSocket::_close() {
-  close(sock_);
+void TCPSocket::close() {
+  ::close(sock_);
   delete[] ip_;
   ip_ = NULL;
 }
