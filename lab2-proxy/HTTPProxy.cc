@@ -31,6 +31,7 @@ HTTPProxy::HTTPProxy(int port) :
 }
 
 int HTTPProxy::run() const {
+
   /* Init */
   TCPSocket serv(IPV4);
   serv.reuseAddr(true);
@@ -45,8 +46,6 @@ int HTTPProxy::run() const {
     if (client == NULL) {
       continue;
     }
-
-    /* Fork off new processes */
     if (!fork()) {
       handleRequest(client);
       client->close();
@@ -55,6 +54,8 @@ int HTTPProxy::run() const {
     }
     client->close();
   }
+
+  /* Exit */
   serv.close();
   return 0;
 }
@@ -67,12 +68,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   vector<char> client_data_array = client->recv(BUFSIZE);
   string client_data(client_data_array.data());
   if (isBadURL(client_data_array)) {
-    cout << "Redirected client due to bad request" << endl;
-    const char *redir_ptr = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\nConnection: close\r\n\r\n";
-    vector<char> redir_array(strlen(redir_ptr));
-    memcpy(redir_array.data(), redir_ptr, strlen(redir_ptr));
-    client->send(redir_array);
-    return 0;
+    return redirectToError1(client);
   }
 
   removeKeepAlive(client_data_array);
@@ -148,6 +144,19 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   cout << "Received connection to " << target_hostname 
        << "\nData was " << string(client_data_array.data()) << endl;
   target.close();
+  return 0;
+}
+
+int HTTPProxy::redirectToError1(TCPSocket *client) const {
+  cout << "Redirected client due to bad request" << endl;
+
+  //TODO: Make socket->send take char * as well
+
+  const char *redir_ptr = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\nConnection: close\r\n\r\n";
+  vector<char> redir_array(strlen(redir_ptr));
+  memcpy(redir_array.data(), redir_ptr, strlen(redir_ptr));
+
+  client->send(redir_array);
   return 0;
 }
 

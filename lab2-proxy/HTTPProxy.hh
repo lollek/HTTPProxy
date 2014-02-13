@@ -19,6 +19,9 @@ class HTTPProxy {
     /* Socket methods */
     int handleRequest(TCPSocket *client) const;
 
+    /* Actions */
+    int redirectToError1(TCPSocket *client) const;
+
     /* Data matching methods */
     std::string findHostName(const std::string &data) const;
     bool isBadURL(const std::vector<char> &data) const;
