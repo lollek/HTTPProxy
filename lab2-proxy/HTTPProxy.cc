@@ -64,7 +64,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   const unsigned BUFSIZE = 1024;
 
-  /* Receive data from client */
+  /* Receive data from client and do some checks */
   vector<char> client_data_array = client->recv(BUFSIZE);
   string client_data(client_data_array.data());
   if (isBadURL(client_data_array)) {
@@ -81,7 +81,6 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     return 1;
   }
 
-
   /* Connect to true target */
   TCPSocket target = TCPSocket(IPV4);
   if (target.connect(findHostName(client_data), 80) != 0 ) {
@@ -89,13 +88,14 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     return 1;
   }
 
-  /* Send first array to target */
+  /* Send data-chunk to target */
   if (target.send(client_data_array) != 0) {
     cerr << "Error sending data1 to " << target_hostname << endl;
     target.close();
     return 1;
   }
-  /* Now send the rest */
+
+  /* Now check the client for more data (e.g. POST) and send it as well */
   if (client_data_array.size() == BUFSIZE) {
     while ((client_data_array = client->recv(BUFSIZE)).size()) {
       if (target.send(client_data_array) != 0) {
@@ -107,32 +107,36 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
   }
 
   /* Send data from target to client */
-  vector<char> target_data_array = target.recv(BUFSIZE);
-  /* Check if Content-Type; text/  */
-  if (contentIsText(string(target_data_array.data()))) {
-    vector<char> full_contents = target_data_array;
-    while ((target_data_array = target.recv(BUFSIZE)).size()) {
-      full_contents.insert(full_contents.end(),
-                           target_data_array.begin(),
-                           target_data_array.end());
+  vector<char> target_data = target.recv(BUFSIZE);
+
+  /* If Content-Type; text/
+   * We download all data, look it through, and then pass it on */
+  if (contentIsText(string(target_data.data()))) {
+    vector<char> all_data = target_data;
+    while ((target_data = target.recv(BUFSIZE)).size()) {
+      all_data.insert(all_data.end(), target_data.begin(), target_data.end());
     }
-    if (client->send(full_contents) != 0) {
+    if (isBadURL(all_data)) {
+      target.close();
+      return redirectToError2(client);
+    }
+    if (client->send(all_data) != 0) {
       target.close();
       cerr << "Error sending data(text) from " << target_hostname << endl;
       return 1;
     }
   }
 
-  /* Else: binary */
+  /* Otherwise, we stream it */
   else {
-    if (client->send(target_data_array) != 0) {
+    if (client->send(target_data) != 0) {
       cerr << "Error sending data(bin) from " << target_hostname << endl;
       target.close();
       return 1;
     }
-    if (target_data_array.size() == BUFSIZE) {
-      while ((target_data_array = target.recv(BUFSIZE)).size()) {
-        if (client->send(target_data_array) != 0) {
+    if (target_data.size() == BUFSIZE) {
+      while ((target_data = target.recv(BUFSIZE)).size()) {
+        if (client->send(target_data) != 0) {
           cerr << "Error sending data(bin) from " << target_hostname << endl;
           target.close();
           return 1;
@@ -141,20 +145,28 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     }
   }
 
-  cout << "Received connection to " << target_hostname 
-       << "\nData was " << string(client_data_array.data()) << endl;
+  /* Exit */
+  cout << "Received connection to " << target_hostname << endl;
   target.close();
   return 0;
 }
 
 int HTTPProxy::redirectToError1(TCPSocket *client) const {
+  return redirectToURL(client, "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\nConnection: close\r\n\r\n");
+}
+
+int HTTPProxy::redirectToError2(TCPSocket *client) const {
+  return redirectToURL(client, "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\nConnection: close\r\n\r\n");
+}
+
+int HTTPProxy::redirectToURL(TCPSocket *client, const char *url) const {
   cout << "Redirected client due to bad request" << endl;
-
   //TODO: Make socket->send take char * as well
-
-  const char *redir_ptr = "HTTP/1.1 302 Found\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\nConnection: close\r\n\r\n";
-  vector<char> redir_array(strlen(redir_ptr));
-  memcpy(redir_array.data(), redir_ptr, strlen(redir_ptr));
+  if (url == NULL) {
+    return 1;
+  }
+  vector<char> redir_array(strlen(url));
+  memcpy(redir_array.data(), url, strlen(url));
 
   client->send(redir_array);
   return 0;
@@ -222,19 +234,9 @@ bool HTTPProxy::isBadURL(const vector<char> &data) const {
 }
 
 
-bool HTTPProxy::hasBadContent(const string &data) const {
-    /* Check if the content contains bad words */
-    const string not_allowed[] = {"Norrköping", "Paris Hilton", "SpongeBob", "BritneySpears"};
-    for (int i=0; i<4; i++) {
-        if (data.find(not_allowed[i]) == string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool HTTPProxy::contentIsText(const string &msg) const {
-  return msg.find("Content-Type: text/") != string::npos;
+  return msg.find("Content-Type: text/") != string::npos ||
+         msg.find("Accept: text/") != string::npos;
 }
 
 void HTTPProxy::removeKeepAlive(vector<char> &data) const {

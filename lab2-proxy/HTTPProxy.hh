@@ -21,11 +21,12 @@ class HTTPProxy {
 
     /* Actions */
     int redirectToError1(TCPSocket *client) const;
+    int redirectToError2(TCPSocket *client) const;
+    int redirectToURL(TCPSocket *client, const char *url) const;
 
     /* Data matching methods */
     std::string findHostName(const std::string &data) const;
     bool isBadURL(const std::vector<char> &data) const;
-    bool hasBadContent(const std::string &data) const;
     bool contentIsText(const std::string &msg) const;
     void removeKeepAlive(std::vector<char> &data) const;
     void shortenLongGets(std::vector<char> &msg) const;
