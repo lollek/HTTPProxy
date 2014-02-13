@@ -109,7 +109,7 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 
   /* If Content-Type; text/
    * We download all data, look it through, and then pass it on */
-  if (contentIsText(string(target_data.data()))) {
+  if (contentIsText(target_data)) {
     vector<char> all_data = target_data;
     while ((target_data = target.recv(BUFSIZE)).size()) {
       all_data.insert(all_data.end(), target_data.begin(), target_data.end());
@@ -237,9 +237,23 @@ bool HTTPProxy::hasBlockedContents(const vector<char> &data) const {
 }
 
 
-bool HTTPProxy::contentIsText(const string &msg) const {
-  return msg.find("Content-Type: text/") != string::npos ||
-         msg.find("Accept: text/") != string::npos;
+bool HTTPProxy::contentIsText(const vector<char> &data) const {
+  const char *data_ptr = data.data();
+  const vector<const char *> keywords = {
+  "\r\nContent-Type: text/", "\r\nAccept: text/"
+  };
+
+  for (unsigned i = 0; i < data.size(); ++i) {
+    for (unsigned word = 0; word < keywords.size(); ++word) {
+      if (!strncmp(data_ptr + i, keywords[word], strlen(keywords[word]))) {
+        return true;
+      }
+    }
+    if (!strncmp(data_ptr + i, "\r\n\r\n", strlen("\r\n\r\n"))) {
+      break;
+    }
+  }
+  return false;
 }
 
 void HTTPProxy::removeKeepAlive(vector<char> &data) const {

@@ -1,7 +1,6 @@
 #ifndef __HTTP_PROXY_HH__
 #define __HTTP_PROXY_HH__
 
-#include <string>
 #include <vector>
 
 #include <signal.h>
@@ -27,11 +26,11 @@ class HTTPProxy {
     /* Data reading methods */
     std::string findHostName(const std::vector<char> &data) const;
     bool hasBlockedContents(const std::vector<char> &data) const;
-    bool contentIsText(const std::string &msg) const;
+    bool contentIsText(const std::vector<char> &data) const;
 
     /* Data modification methods */
     void removeKeepAlive(std::vector<char> &data) const;
-    void shortenLongGets(std::vector<char> &msg) const;
+    void shortenLongGets(std::vector<char> &data) const;
 
     /* Variables */
     const int port_;
