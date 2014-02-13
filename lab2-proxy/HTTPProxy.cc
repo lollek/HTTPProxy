@@ -210,7 +210,7 @@ bool HTTPProxy::hasBlockedContents(const vector<char> &data) const {
   const char *data_ptr = data.data();
   const vector<const char *> wordlist = {
     "Norrkoping", "ParisHilton", "SpongeBob", "BritneySpears",
-    "Paris%20Hilton", "Sponge%20Bob", "Britney%20Spears",
+    "Norrk%c3%b6ping", "Paris%20Hilton", "Sponge%20Bob", "Britney%20Spears",
     "Paris_Hilton", "Sponge_Bob", "Britney_Spears",
     "Paris+Hilton", "Sponge+Bob", "Britney+Spears"
   };
