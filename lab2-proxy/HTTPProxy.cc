@@ -238,36 +238,32 @@ bool HTTPProxy::contentIsText(const string &msg) const {
 }
 
 void HTTPProxy::removeKeepAlive(vector<char> &data) const {
-  char *datadata = data.data();
+  char *data_ptr = data.data();
 
-  const char *open1 = "Connection: Keep-Alive";
-  const char *open2 = "Connection: keep-alive";
-
-  const char *closed1 = "Connection: Close";
-  const char *closed2 = "Connection: close";
+  const char *open = "Connection: Keep-Alive";
+  const char *closed = "Connection: Close";
 
   for (unsigned i = 0; i < data.size(); ++i) {
 
     /* If Connection: Keep-Alive is found */
-    if (!strncmp(datadata + i, open1, strlen(open1)) ||
-        !strncmp(datadata + i, open2, strlen(open2))) {
+    if (strlen(open) <= data.size() - i &&
+        !strncasecmp(data_ptr + i, open, strlen(open))) {
       i += 12;
-      memcpy(datadata + i, "close", 5);
-      memcpy(datadata + i + 5, datadata + i + 11, data.size() - i - 5);
+      memcpy(data_ptr + i, "close", 5);
+      memcpy(data_ptr + i + 5, data_ptr + i + 11, data.size() - i - 5);
       data.resize(data.size() - 5);
-      //data.erase(data.begin() +i +5, data.begin() +i +11);
       return;
     }
 
     /* If Connection: close is found */
-    else if (!strncmp(datadata + i, closed1, strlen(closed1)) ||
-             !strncmp(datadata + i, closed2, strlen(closed2))) {
+    else if (strlen(closed) <= data.size() - i &&
+             !strncasecmp(data_ptr + i, closed, strlen(closed))) {
       return;
     }
 
     /* Else if \r\n\r\n, we have reached the end of the header
      * In that case we manually add it */
-    else if (!strncmp(datadata + i, "\r\n\r\n", 4)) {
+    else if (!strncmp(data_ptr + i, "\r\n\r\n", 4)) {
       i += 2;
       const char *raw_data_to_add = "Connection: Close\r\n";
       vector<char> data_to_add(strlen(raw_data_to_add));
@@ -278,7 +274,7 @@ void HTTPProxy::removeKeepAlive(vector<char> &data) const {
   }
 
   cerr << "EOL at removeKeepAlive reached! Data was:\n" 
-       << string(datadata) << endl;
+       << string(data_ptr) << endl;
   return;
 
 }
