@@ -1,3 +1,3 @@
 [submodule "lab2-proxy/TCPSocket"]
 	path = lab2-proxy/TCPSocket
-	url = git@github.com:lollek/TCPSocket.git
+	url = git://github.com/lollek/TCPSocket.git
