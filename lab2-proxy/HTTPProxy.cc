@@ -71,19 +71,19 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
     return redirectToError1(client);
   }
 
-  removeKeepAlive(client_data_array);
-  shortenLongGets(client_data_array);
-
-  string target_hostname = findHostName(client_data);
+  string target_hostname = findHostName(client_data_array);
   if (target_hostname.size() == 0) {
     cerr << "No hostname found - Data(" << client_data.size() << ")"
          << client_data << '\n';
     return 1;
   }
 
+  removeKeepAlive(client_data_array);
+  shortenLongGets(client_data_array);
+
   /* Connect to true target */
   TCPSocket target = TCPSocket(IPV4);
-  if (target.connect(findHostName(client_data), 80) != 0 ) {
+  if (target.connect(target_hostname, 80) != 0 ) {
     cout << "Failed to connect to " << target_hostname << endl;
     return 1;
   }
@@ -152,15 +152,16 @@ int HTTPProxy::handleRequest(TCPSocket *client) const {
 }
 
 int HTTPProxy::redirectToError1(TCPSocket *client) const {
+  cout << "Redirected client due to bad request" << endl;
   return redirectToURL(client, "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error1.html\r\nConnection: close\r\n\r\n");
 }
 
 int HTTPProxy::redirectToError2(TCPSocket *client) const {
+  cout << "Redirected client due to bad content" << endl;
   return redirectToURL(client, "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.ida.liu.se/~TDTS04/labs/2011/ass2/error2.html\r\nConnection: close\r\n\r\n");
 }
 
 int HTTPProxy::redirectToURL(TCPSocket *client, const char *url) const {
-  cout << "Redirected client due to bad request" << endl;
   //TODO: Make socket->send take char * as well
   if (url == NULL) {
     return 1;
@@ -172,40 +173,45 @@ int HTTPProxy::redirectToURL(TCPSocket *client, const char *url) const {
   return 0;
 }
 
-string HTTPProxy::findHostName(const string &data) const {
+string HTTPProxy::findHostName(const vector<char> &data) const {
+  const char *data_ptr = data.data();
+
   /* Check for Host: www.hostname.dom\r\n */
-  const string start_delim = "Host: ";
-  unsigned start = data.find(start_delim);
-  if (start != string::npos) {
-    start += start_delim.length();
-
-    unsigned end = start;
-    while (isalpha(data[end]) ||
-           isdigit(data[end]) ||
-           data[end] == '.'   ||
-           data[end] == '-' ) {
-      ++end;
+  for (unsigned i = 0; i < data.size(); ++i) {
+    if (!strncmp(data_ptr + i, "\r\nHost: ", strlen("\r\nHost: "))) {
+      i += strlen("\r\nHost: ");
+      unsigned end = i;
+      while (strncmp(data_ptr + ++end, "\r\n", 2))
+        ;
+      string hostname;
+      hostname.insert(0, data_ptr + i, end - i);
+      return hostname;
     }
-    return data.substr(start, end - start);
-  }
 
-  /* Otherwise, check for COMMAND https?://www.hostname.com\r\n */
-  for (start = 0; data[start] != '\n'; ++start) {
-    if (data[start] == ':' && data[start +1] == '/' && data[start +2] == '/') {
-      start += 3;
+    if (strlen("\r\n\r\n") > data.size() - i ||
+        !strncmp(data_ptr + i, "\r\n\r\n", 4)) {
       break;
     }
   }
 
-  if (data[start] != '\n') {
-    unsigned end = start;
-    while (isalpha(data[end]) ||
-           isdigit(data[end]) ||
-           data[end] == '.'   ||
-           data[end] == '-' ) {
-      ++end;
+  /* Otherwise, check for http://www.hostname.dom */
+  for (unsigned i = 0; i < data.size(); ++i) {
+    if (!strncmp(data_ptr + i, "://", strlen("://"))) {
+      i += strlen("://");
+      unsigned end = i;
+      while (*(data_ptr + end) != ' ' &&
+             *(data_ptr + end) != '\r' &&
+             *(data_ptr + end) != '/') {
+        ++end;
+      }
+      string hostname;
+      hostname.insert(0, data_ptr + i, end - i);
+      return hostname;
     }
-    return data.substr(start, end - start);
+
+    if (!strncmp(data_ptr + i, "\r\n", strlen("\r\n"))) {
+      break;
+    }
   }
 
   /* If all fails, return empty string */
