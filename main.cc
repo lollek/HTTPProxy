@@ -10,11 +10,14 @@ int main(int argc, char *argv[]) {
     cerr << "Usage: %s port" << argv[0] << endl;
     return 1;
   }
+
+  int port_number;
   try {
-    HTTPProxy proxy = HTTPProxy(stoi(argv[1]));
-    return proxy.run();
+    port_number = stoi(argv[1]);
   } catch (const invalid_argument &e) {
     cerr << "Error: port contains non-digits!\n";
     return 1;
   }
+  HTTPProxy proxy = HTTPProxy(port_number);
+  return proxy.run();
 }
