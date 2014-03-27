@@ -5,7 +5,7 @@
 
 #include <signal.h>
 
-#include "TCPSocket.hh"
+#include "TCPSocket/TCPSocket.hh"
 
 void sigchld_handle(int sig);
 

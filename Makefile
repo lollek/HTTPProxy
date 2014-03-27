@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++11 -O3 -g -Weffc++
-OBJS = TCPSocket.o HTTPProxy.o main.o
+OBJS = TCPSocket/TCPSocket.o HTTPProxy.o main.o
 TARGET = proxy
 
 all: $(OBJS)
