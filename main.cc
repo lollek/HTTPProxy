@@ -7,7 +7,7 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    cerr << "Usage: %s port" << argv[0] << endl;
+    cerr << "Usage: " << argv[0] << " port\n";
     return 1;
   }
 
