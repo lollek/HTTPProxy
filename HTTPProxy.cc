@@ -291,32 +291,45 @@ void HTTPProxy::shortenLongGets(vector<char> &msg) const {
   /* This function changes a request from
    * "GET http://www.youtube.com\r\n" to "GET /\r\n"
    * to get around some issues */
-  char *msg_ptr = msg.data();
 
+  unsigned remove_from = 0;
   for (unsigned i = 0; i < msg.size(); ++i) {
-    /* Look for first space */
-    if (msg[i] == ' ') {
-      if (msg[++i] == '/') {
-        return;
-      }
-      unsigned end = i;
-      while (msg[++end] != '/') ;
-      while (msg[++end] != '/') ;
-      while (msg[++end] != '/') ;
-      memcpy(msg_ptr +i, msg_ptr +end, msg.size() - end);
-      msg.resize(msg.size() - (end - i));
-      return;
 
-    /* Otherwise if it's letters, continue */
-    } else if (isalpha(msg[i])) {
+    /* GET, CONNECT, and all those should be at the start */
+    if (isalpha(msg[i])) {
       continue;
 
-    /* There shouldn't be anything else, so in that case we just return */
-    } else {
-      cerr << "Err: shortenLongGets received a \"" << msg[i]
-           << "\"!\n";
+    /* This should be between the GET and the rest of the command
+     * If there's a / after the space, we just return it
+     * (as there is nothing to remove), otherwise we cut from here */
+    } else if (msg[i] == ' ' && i + 1 < msg.size()) {
+      if (remove_from != 0) {
+        return;
+      }
+      remove_from = ++i;
+      if (msg[remove_from] == '/') {
+        return;
+      }
+
+    /* Skip the :// in http:// */
+    } else if (i + 2 < msg.size() && msg[i] == ':' &&
+               msg[i+1] == '/' && msg[i+2] == '/') {
+      i += 3;
+
+    /* Otherwise, it should be the remote_to slash,
+     * in this case, we move all data to overwrite the bad part, then return */
+    } else if (msg[i] == '/') {
+      unsigned remove_to = i;
+      memcpy(msg.data() + remove_from,
+             msg.data() + remove_to,
+             msg.size() - remove_to);
+      msg.resize(msg.size() - (remove_to - remove_from));
+      return;
+
+    /* If we for some reason end up at EOL, we just return */
+    } else if (msg[i] == '\n' || msg[i] == '\r') {
       return;
     }
   }
-  cerr << "Err: shortenLongGets ran out of data before the GET was over!\n";
 }
+
